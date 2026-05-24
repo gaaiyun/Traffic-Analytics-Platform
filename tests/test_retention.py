@@ -60,7 +60,7 @@ class TestRetentionAnalyzer:
         assert retention_matrix.min().min() >= 0
         assert retention_matrix.max().max() <= 100
     
-    def test_calculate_retention_matrix_no_cohort(self):
+    def test_calculate_retention_matrix_no_cohort(self, sample_traffic_data):
         """测试未创建 Cohort 时的留存矩阵"""
         analyzer = RetentionAnalyzer(sample_traffic_data)
         with pytest.raises(ValueError):

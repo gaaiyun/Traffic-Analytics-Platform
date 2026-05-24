@@ -85,10 +85,12 @@ class TrafficAnalyzer:
             percentage=('user_id', lambda x: len(x) / len(self.data) * 100)
         ).reset_index()
         
+        mobile_mask = device_stats[device_column].str.contains('mobile', case=False, na=False)
+        mobile_pct = (device_stats[mobile_mask]['percentage'].sum()
+                      if mobile_mask.any() else 0.0)
         return {
             'device_distribution': device_stats,
-            'mobile_percentage': device_stats[device_stats[device_column].str.contains('mobile', case=False)]['percentage'].sum() 
-                               if device_stats[device_stats[device_column].str.contains('mobile', case=False).any() else 0
+            'mobile_percentage': float(mobile_pct),
         }
     
     def analyze_geography(self, geo_column: str = 'country') -> Dict[str, Any]:
