@@ -1,247 +1,216 @@
-# 📊 流量分析平台 (Traffic Analytics Platform)
+# Traffic-Analytics-Platform
 
-专业的网站/APP 流量分析和用户行为洞察平台
+网站 / APP 流量分析平台：Streamlit 仪表板（v1）+ headless CLI（v2）。
 
-## ✨ 功能特性
+v1 提供 6 个 analyzer（流量 / 行为 / 留存 / 异常 / 预测 / 分群）+ Streamlit
+仪表板 + 60+ 单元测试。6 个 analyzer 已经是纯 pandas（只有 dashboard.py 依赖
+Streamlit），但**v1 有 3 个 bug**导致原始测试无法全跑通：
 
-### 核心分析模块
+| Bug | 位置 | 修复 |
+|---|---|---|
+| 语法错误（未闭合 `[`） | `traffic_analyzer.py:91` `analyze_device_distribution` | 重写为可读三行 |
+| 测试 fixture 缺参数 | `tests/test_retention.py:65` | 加 `sample_traffic_data` 参数 |
+| std 期望值用错 ddof | `tests/test_anomaly.py:128` | 改 `df.std(ddof=0)` 与 numpy 一致 |
 
-1. **📈 流量分析**
-   - PV/UV 统计与趋势分析
-   - 多渠道流量来源拆解
-   - 流量质量评估评分
-   - 设备分布分析
-   - 地域分布热力图
+v2 在修这些 bug 的基础上加 CLI 入口，10 个新 CLI 烟雾测试。
 
-2. **🎯 用户行为分析**
-   - 页面停留时长分析
-   - 跳出率计算
-   - 访问深度分布
-   - 用户行为路径追踪
-   - 桑基图可视化
+## v2 新增 / 修复
 
-3. **🔄 留存分析**
-   - Cohort 分析（按周/月）
-   - 次日/7 日/30 日留存率
-   - 留存矩阵热力图
-   - 留存曲线对比
-   - 留存驱动因素分析
+| 文件 | 干什么 |
+|---|---|
+| `__main__.py` | CLI 6 子命令：traffic / behavior / retention / anomalies / forecast / segments |
+| `tests/test_cli.py` | 10 个 CLI 端到端 + `_to_jsonable` 单元测试 |
+| `traffic_analyzer.py` | **修 v1 syntax error** `analyze_device_distribution` |
+| `tests/test_retention.py` | **修 fixture 漏参** test_calculate_retention_matrix_no_cohort |
+| `tests/test_anomaly.py` | **修 std ddof 不一致** test_z_score_calculation |
 
-4. **⚠️ 异常检测**
-   - Z-Score 统计异常检测
-   - 孤立森林机器学习检测
-   - 趋势异常识别
-   - 自动告警系统
+总测试 71 个（61 v1 + 10 v2），2.5 秒跑完。
 
-5. **🔮 预测模型**
-   - ARIMA 时间序列预测
-   - 指数平滑预测
-   - 趋势分析与预测
-   - 置信区间展示
+## v1 仍保留
 
-6. **🎯 细分分析**
-   - RFM 用户价值细分
-   - K-Means 用户聚类
-   - 多维度交叉分析
-   - 细分群体对比
+| 模块 | 干什么 |
+|---|---|
+| `dashboard.py` | Streamlit 交互式主界面 |
+| `traffic_analyzer.py` | PV/UV / 来源 / 设备 / 地理 |
+| `behavior_analyzer.py` | 页面 / 跳出率 / 访问深度 / 用户路径 |
+| `retention_analyzer.py` | Cohort 留存 |
+| `anomaly_detector.py` | Z-Score / Isolation Forest / 趋势异常 |
+| `forecaster.py` | ARIMA / 指数平滑 |
+| `segmentation_analyzer.py` | RFM 分群 |
+| `generate_sample_data.py` / `sample_data.csv` | 示例数据 |
 
-## 🚀 快速开始
-
-### 安装依赖
+## 安装
 
 ```bash
-cd traffic-analytics-platform
 pip install -r requirements.txt
 ```
 
-### 运行平台
+## 快速开始
+
+### v2 headless CLI
 
 ```bash
-# 使用示例数据运行
+# 流量概览：PV/UV + 来源 + 设备 + 地理
+python __main__.py traffic sample_data.csv
+
+# 用户行为：页面 + 跳出 + 深度
+python __main__.py behavior sample_data.csv
+
+# 周 cohort 留存矩阵
+python __main__.py retention sample_data.csv --granularity week
+
+# 异常检测（z-score）
+python __main__.py anomalies sample_data.csv --metric duration --threshold 2.5
+
+# 时间序列预测
+python __main__.py forecast sample_data.csv --metric visits --steps 7
+
+# RFM 用户分群
+python __main__.py segments sample_data.csv
+
+# 所有命令支持 -o report.json
+python __main__.py traffic sample_data.csv -o report.json
+```
+
+### v1 Streamlit 仪表板
+
+```bash
 streamlit run dashboard.py
-
-# 或使用自定义数据生成脚本
-python generate_sample_data.py
-streamlit run dashboard.py
 ```
 
-### 访问界面
-
-浏览器打开：`http://localhost:8501`
-
-## 📁 项目结构
-
-```
-traffic-analytics-platform/
-├── dashboard.py              # 主界面（Streamlit）
-├── traffic_analyzer.py       # 流量分析模块
-├── behavior_analyzer.py      # 行为分析模块
-├── retention_analyzer.py     # 留存分析模块
-├── anomaly_detector.py       # 异常检测模块
-├── forecaster.py             # 预测模块
-├── segmentation_analyzer.py  # 细分分析模块
-├── generate_sample_data.py   # 示例数据生成
-├── sample_data.csv           # 示例数据文件
-├── requirements.txt          # 依赖列表
-├── README.md                 # 项目文档
-└── tests/                    # 单元测试
-    ├── test_traffic.py
-    ├── test_behavior.py
-    ├── test_retention.py
-    ├── test_anomaly.py
-    ├── test_forecaster.py
-    └── test_segmentation.py
-```
-
-## 📊 数据格式
-
-支持导入 CSV 文件，需包含以下列：
-
-| 列名 | 说明 | 必填 |
-|------|------|------|
-| date | 日期 (YYYY-MM-DD) | ✅ |
-| user_id | 用户 ID | ✅ |
-| session_id | 会话 ID | ✅ |
-| page | 页面名称 | ✅ |
-| source | 流量来源 | ✅ |
-| device | 设备类型 | ✅ |
-| country | 国家/地区 | ✅ |
-| duration | 停留时长 (秒) | ✅ |
-| timestamp | 时间戳 | ✅ |
-
-## 🧪 运行测试
-
-```bash
-# 运行所有测试
-pytest tests/ -v
-
-# 运行测试并生成覆盖率报告
-pytest tests/ -v --cov=. --cov-report=html
-
-# 查看覆盖率报告
-open htmlcov/index.html  # macOS/Linux
-start htmlcov\index.html  # Windows
-```
-
-## 🎨 界面截图
-
-### 主界面概览
-- 关键指标卡片（PV、UV、会话数、平均停留）
-- 数据质量检查
-- 数据预览表格
-
-### 流量分析
-- PV/UV 趋势图
-- 流量来源饼图
-- 设备分布柱状图
-- 地域分布热力图
-
-### 行为分析
-- 页面表现分析
-- 跳出率与访问深度
-- 用户路径桑基图
-
-### 留存分析
-- Cohort 留存矩阵
-- 留存率指标
-- 留存曲线对比
-
-### 异常检测
-- 时间序列异常点标记
-- 统计阈值可视化
-- 告警列表
-
-### 预测模型
-- ARIMA/指数平滑模型选择
-- 未来趋势预测
-- 置信区间展示
-
-### 细分分析
-- RFM 用户价值分群
-- K-Means 聚类分析
-- 细分群体特征对比
-
-## 🔧 配置选项
-
-### 环境变量
-
-```bash
-# 可选：自定义端口
-STREAMLIPT_SERVER_PORT=8502
-
-# 可选：自定义主机
-STREAMLIT_SERVER_ADDRESS=0.0.0.0
-```
-
-### Streamlit 配置
-
-创建 `.streamlit/config.toml`:
-
-```toml
-[server]
-port = 8501
-headless = true
-
-[theme]
-primaryColor = "#1f77b4"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
-```
-
-## 📈 性能优化建议
-
-1. **大数据集处理**
-   - 建议使用数据采样（>100 万条记录时）
-   - 启用数据缓存
-   - 使用数据库而非 CSV
-
-2. **内存优化**
-   - 按需加载数据
-   - 使用数据类型优化（如 category）
-   - 定期清理缓存
-
-3. **响应速度**
-   - 使用 `@st.cache_data` 装饰器
-   - 预计算常用指标
-   - 异步加载大型图表
-
-## 🔌 扩展开发
-
-### 添加新分析模块
-
-1. 创建新的分析器类（参考现有模块）
-2. 在 `dashboard.py` 中导入
-3. 在侧边栏添加导航选项
-4. 实现可视化逻辑
-
-### 示例：添加转化漏斗分析
+### 库调用
 
 ```python
-# conversion_analyzer.py
-class ConversionAnalyzer:
-    def calculate_funnel(self, steps):
-        # 实现转化漏斗逻辑
-        pass
+import pandas as pd
+from traffic_analyzer import TrafficAnalyzer
+from behavior_analyzer import BehaviorAnalyzer
+from retention_analyzer import RetentionAnalyzer
 
-# dashboard.py
-from conversion_analyzer import ConversionAnalyzer
+df = pd.read_csv("traffic.csv")
+df["date"] = pd.to_datetime(df["date"])
+
+# 流量
+ta = TrafficAnalyzer(df)
+ta.calculate_pv_uv()
+print(ta.get_summary())     # {'metrics': {'pv': N, 'uv': N, ...}, 'data_shape': ...}
+
+# 行为
+ba = BehaviorAnalyzer(df)
+print(ba.calculate_page_metrics())
+print(ba.calculate_bounce_rate())
+
+# 留存
+ra = RetentionAnalyzer(df)
+ra.create_cohorts("date", "user_id", "week")
+matrix = ra.calculate_retention_matrix()
 ```
 
-## 📝 许可证
+## 数据 schema
 
-MIT License
+| 列 | 必需 | 说明 |
+|---|---|---|
+| date | **是** | datetime-parseable |
+| user_id | **是** | 用户 ID |
+| session_id | 否 | 会话 ID（行为 / 跳出率分析需要） |
+| page | 否 | 页面名（行为分析需要） |
+| source | 否 | 来源（utm_source 类） |
+| device | 否 | desktop / mobile / tablet |
+| country / city | 否 | 地理分析需要 |
+| duration | 否 | 停留时长（秒） |
+| visits | 否 | 异常检测默认 metric 列 |
 
-## 🤝 贡献
+## v1 bug 修复细节
 
-欢迎提交 Issue 和 Pull Request！
+### 1. `traffic_analyzer.py` 行 91 语法错误
 
-## 📧 联系方式
+```python
+# v1 原版（无法 import）：
+'mobile_percentage': device_stats[device_stats[...]]['percentage'].sum()
+                   if device_stats[device_stats[...].any() else 0   # 漏 ]
+}
+```
 
-如有问题或建议，请提交 Issue。
+修成：
 
----
+```python
+mobile_mask = device_stats[device_column].str.contains('mobile', case=False, na=False)
+mobile_pct = (device_stats[mobile_mask]['percentage'].sum()
+              if mobile_mask.any() else 0.0)
+return {
+    'device_distribution': device_stats,
+    'mobile_percentage': float(mobile_pct),
+}
+```
 
-**版本**: v1.0  
-**最后更新**: 2026-03-04  
-**技术栈**: Streamlit + Pandas + Plotly + Scikit-learn
+### 2. test_retention 漏参
+
+```python
+# v1 原版（NameError）：
+def test_calculate_retention_matrix_no_cohort(self):
+    analyzer = RetentionAnalyzer(sample_traffic_data)   # 没传 fixture
+```
+
+修成：
+
+```python
+def test_calculate_retention_matrix_no_cohort(self, sample_traffic_data):
+```
+
+### 3. test_anomaly std ddof 不一致
+
+`anomaly_detector` 用 `numpy.std(values)` 默认 `ddof=0`（总体），但测试期望
+`df.std()` 默认 `ddof=1`（样本）—— 600 个数据点上差 ~0.5%。改成测试也用
+`ddof=0`，与 detector 实现保持一致。
+
+## 设计取舍
+
+- **CLI 不做画图**：图表归 Streamlit dashboard，CLI 只输出 JSON / 写文件 —— 让
+  脚本和 cron 任务能消费。
+- **`_to_jsonable` 递归转换**：DataFrame / Series / numpy 类型 / datetime 全部
+  转 JSON 可序列化值，避免每个子命令各自处理。
+- **anomalies 子命令 fallback**：用户传一个 CSV 里没有的 metric 列，自动 fallback
+  到第一个数值列（带 warning），而不是直接报错。
+
+## 项目结构
+
+```
+Traffic-Analytics-Platform/
+├── __main__.py                  # v2 CLI
+├── dashboard.py                 # v1 Streamlit
+├── traffic_analyzer.py          # v1（已修 syntax error）
+├── behavior_analyzer.py         # v1
+├── retention_analyzer.py        # v1
+├── anomaly_detector.py          # v1
+├── forecaster.py                # v1
+├── segmentation_analyzer.py     # v1
+├── generate_sample_data.py
+├── tests/                       # 71 测试
+│   ├── conftest.py
+│   ├── test_traffic.py
+│   ├── test_behavior.py
+│   ├── test_retention.py        # 修 fixture 参数
+│   ├── test_anomaly.py          # 修 std ddof
+│   ├── test_forecaster.py
+│   └── test_cli.py              # v2 新增
+├── sample_data.csv
+└── requirements.txt
+```
+
+## 测试
+
+```bash
+pytest tests/ --no-cov
+```
+
+71 个测试，2.5 秒跑完。
+
+## 已知限制
+
+- `forecast` 子命令默认用指数平滑，statsmodels 装失败时回退到简单 trend
+  forecast（最后两个点的线性外推），不精确但能跑。
+- `retention` 默认按 week 切 cohort；按 day 切会产生很多小 cohort，可读性差。
+- `traffic` 的设备 / 地理分析只在数据有对应列时跑，缺列就跳过该字段。
+
+## 许可
+
+MIT

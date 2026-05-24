@@ -121,9 +121,11 @@ class TestAnomalyDetector:
         result = detector.detect_statistical_anomalies('visits', threshold=3.0)
         
         # 验证均值和标准差计算
+        # 注意：detector 用 numpy.std 默认 ddof=0（总体标准差），
+        # pandas.Series.std 默认 ddof=1（样本标准差）—— 两者会有微小差异
         expected_mean = sample_time_series_data['visits'].mean()
-        expected_std = sample_time_series_data['visits'].std()
-        
+        expected_std = sample_time_series_data['visits'].std(ddof=0)
+
         assert abs(result['mean'] - expected_mean) < 0.01
         assert abs(result['std'] - expected_std) < 0.01
     
