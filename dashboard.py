@@ -22,7 +22,6 @@ from segmentation_analyzer import SegmentationAnalyzer
 # 页面配置
 st.set_page_config(
     page_title="流量分析平台",
-    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -80,11 +79,11 @@ def load_data():
 
 
 def main():
-    st.markdown('<p class="main-header">📊 流量分析平台</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">流量分析平台</p>', unsafe_allow_html=True)
     st.markdown("专业的网站/APP 流量分析和用户行为洞察平台")
     
     # 侧边栏
-    st.sidebar.header("📁 数据管理")
+    st.sidebar.header("数据管理")
     
     uploaded_file = st.sidebar.file_uploader("上传 CSV 文件", type=['csv'])
     if uploaded_file:
@@ -98,10 +97,10 @@ def main():
     with st.spinner("正在加载数据..."):
         df = load_data()
     
-    st.sidebar.success(f"✓ 已加载 {len(df):,} 条记录")
+    st.sidebar.success(f"已加载 {len(df):,} 条记录")
     
     # 主导航
-    st.sidebar.header("📈 分析模块")
+    st.sidebar.header("分析模块")
     module = st.sidebar.radio(
         "选择分析模块",
         ["概览", "流量分析", "行为分析", "留存分析", "异常检测", "预测模型", "细分分析"],
@@ -118,7 +117,7 @@ def main():
     
     # 概览模块
     if module == "概览":
-        st.header("📊 数据概览")
+        st.header("数据概览")
         
         # 关键指标
         col1, col2, col3, col4 = st.columns(4)
@@ -139,16 +138,16 @@ def main():
             st.metric("平均停留时长", f"{avg_duration:.1f}秒")
         
         # 数据预览
-        st.subheader("📋 数据预览")
+        st.subheader("数据预览")
         st.dataframe(df.head(100), use_container_width=True)
         
         # 数据质量检查
-        st.subheader("✅ 数据质量")
+        st.subheader("数据质量")
         col1, col2 = st.columns(2)
         with col1:
             st.write("**缺失值统计:**")
             missing = df.isnull().sum()
-            st.write(missing[missing > 0] if any(missing > 0) else "✓ 无缺失值")
+            st.write(missing[missing > 0] if any(missing > 0) else "无缺失值")
         
         with col2:
             st.write("**数据类型:**")
@@ -156,7 +155,7 @@ def main():
     
     # 流量分析模块
     elif module == "流量分析":
-        st.header("📈 流量分析")
+        st.header("流量分析")
         
         # PV/UV 趋势
         st.subheader("PV/UV 趋势")
@@ -175,7 +174,7 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
         
         # 流量来源分析
-        st.subheader("🔗 流量来源分布")
+        st.subheader("流量来源分布")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -195,7 +194,7 @@ def main():
             st.plotly_chart(fig_bar, use_container_width=True)
         
         # 设备分布
-        st.subheader("📱 设备分布")
+        st.subheader("设备分布")
         device_dist = df['device'].value_counts().reset_index()
         device_dist.columns = ['设备', '访问量']
         fig_device = px.bar(device_dist, x='设备', y='访问量',
@@ -203,7 +202,7 @@ def main():
         st.plotly_chart(fig_device, use_container_width=True)
         
         # 地域分布
-        st.subheader("🌍 地域分布")
+        st.subheader("地域分布")
         country_dist = df['country'].value_counts().head(10).reset_index()
         country_dist.columns = ['国家', '访问量']
         fig_country = px.bar(country_dist, x='国家', y='访问量',
@@ -212,7 +211,7 @@ def main():
     
     # 行为分析模块
     elif module == "行为分析":
-        st.header("🎯 用户行为分析")
+        st.header("用户行为分析")
         
         # 关键行为指标
         col1, col2, col3 = st.columns(3)
@@ -231,7 +230,7 @@ def main():
         col3.metric("平均页面停留", f"{avg_time:.1f}秒")
         
         # 页面指标
-        st.subheader("📄 页面表现")
+        st.subheader("页面表现")
         page_metrics = df.groupby('page').agg(
             views=('user_id', 'count'),
             unique_visitors=('user_id', 'nunique'),
@@ -244,14 +243,14 @@ def main():
         st.plotly_chart(fig_pages, use_container_width=True)
         
         # 访问深度分布
-        st.subheader("📊 访问深度分布")
+        st.subheader("访问深度分布")
         depth_dist = session_counts.value_counts().sort_index()
         fig_depth = px.bar(x=depth_dist.index, y=depth_dist.values,
                           labels={'x': '访问页数', 'y': '会话数'})
         st.plotly_chart(fig_depth, use_container_width=True)
         
         # 用户路径分析（桑基图）
-        st.subheader("🛤️ 用户行为路径")
+        st.subheader("用户行为路径")
         sorted_df = df.sort_values(['session_id', 'timestamp'])
         
         sources, targets, values = [], [], []
@@ -280,14 +279,14 @@ def main():
     
     # 留存分析模块
     elif module == "留存分析":
-        st.header("🔄 留存分析")
+        st.header("留存分析")
         
         # 创建 Cohort
         retention_analyzer.load_data(df)
         cohort_data = retention_analyzer.create_cohorts(cohort_period='week')
         
         # 留存矩阵
-        st.subheader("📅 留存矩阵")
+        st.subheader("留存矩阵")
         retention_matrix = retention_analyzer.calculate_retention_matrix()
         
         # 显示留存率
@@ -306,7 +305,7 @@ def main():
         st.plotly_chart(fig_retention, use_container_width=True)
         
         # 留存曲线
-        st.subheader("📈 留存曲线")
+        st.subheader("留存曲线")
         fig_curves = go.Figure()
         for cohort in retention_matrix.index[:10]:  # 显示前 10 个 cohort
             fig_curves.add_trace(go.Scatter(
@@ -321,13 +320,13 @@ def main():
     
     # 异常检测模块
     elif module == "异常检测":
-        st.header("⚠️ 异常检测")
+        st.header("异常检测")
         
         # 按日期聚合
         daily_visits = df.groupby('date').size().reset_index(name='visits')
         
         # 统计异常检测
-        st.subheader("📊 Z-Score 异常检测")
+        st.subheader("Z-Score 异常检测")
         anomaly_detector.load_data(daily_visits)
         anomaly_results = anomaly_detector.detect_statistical_anomalies('visits', threshold=2.5)
         
@@ -357,23 +356,23 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
         
         # 告警列表
-        st.subheader("🔔 告警列表")
+        st.subheader("告警列表")
         alerts = anomaly_detector.create_alerts()
         if alerts:
             for alert in alerts[:10]:
                 st.warning(f"**{alert['severity'].upper()}** - {alert['message']}")
         else:
-            st.success("✓ 未检测到异常")
+            st.success("未检测到异常")
     
     # 预测模型模块
     elif module == "预测模型":
-        st.header("🔮 流量预测")
+        st.header("流量预测")
         
         # 准备时间序列
         ts = forecaster.prepare_time_series('date', 'user_id')
         
         # 模型选择
-        st.subheader("📈 模型拟合")
+        st.subheader("模型拟合")
         model_type = st.selectbox("选择预测模型", ["ARIMA", "指数平滑"])
         
         if model_type == "ARIMA":
@@ -382,12 +381,12 @@ def main():
             result = forecaster.fit_exponential_smoothing(ts)
         
         if result['status'] == 'success':
-            st.success(f"✓ 模型拟合成功 - AIC: {result.get('aic', 'N/A'):.2f}")
+            st.success(f"模型拟合成功 - AIC: {result.get('aic', 'N/A'):.2f}")
         else:
             st.error(f"模型拟合失败：{result.get('error', '未知错误')}")
         
         # 预测
-        st.subheader("📊 未来预测")
+        st.subheader("未来预测")
         forecast_days = st.slider("预测天数", 7, 30, 14)
         
         if forecaster.model:
@@ -412,18 +411,18 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
         
         # 趋势分析
-        st.subheader("📉 趋势分析")
+        st.subheader("趋势分析")
         trend_result = forecaster.forecast_trend(ts, steps=30)
         col1, col2 = st.columns(2)
-        col1.metric("趋势方向", "📈 上升" if trend_result['trend'] == 'increasing' else "📉 下降")
+        col1.metric("趋势方向", "上升" if trend_result['trend'] == 'increasing' else "下降")
         col2.metric("R²", f"{trend_result['r_squared']:.3f}")
     
     # 细分分析模块
     elif module == "细分分析":
-        st.header("🎯 用户细分分析")
+        st.header("用户细分分析")
         
         # RFM 分析
-        st.subheader("💎 RFM 用户价值细分")
+        st.subheader("RFM 用户价值细分")
         
         # 计算 RFM 指标
         rfm_data = df.groupby('user_id').agg(
@@ -454,7 +453,7 @@ def main():
             st.plotly_chart(fig_rfm_bar, use_container_width=True)
         
         # K-Means 聚类
-        st.subheader("🤖 K-Means 用户分群")
+        st.subheader("K-Means 用户分群")
         n_clusters = st.slider("分群数量", 3, 10, 5)
         
         feature_cols = ['recency', 'frequency', 'monetary']
@@ -477,7 +476,7 @@ def main():
     
     # 页脚
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**📊 流量分析平台 v1.0**")
+    st.sidebar.markdown("**流量分析平台 v1.0**")
     st.sidebar.markdown("基于 Streamlit + Plotly 构建")
 
 

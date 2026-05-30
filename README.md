@@ -1,43 +1,22 @@
-# Traffic-Analytics-Platform
+# event-lens
 
-网站 / APP 流量分析平台：Streamlit 仪表板（v1）+ headless CLI（v2）。
+自托管、纯 pandas 的产品/网站事件分析。给一份事件 CSV（至少含
+`user_id`、`event`、`timestamp` 三列），一条命令就能算出漏斗转化、留存
+cohort、用户路径、异常、预测和 RFM 分群——不需要埋点 SDK，不需要数据库，
+不需要起服务。可以理解为 PostHog / Mixpanel 的一个轻量、可离线、可塞进 cron
+的自托管子集。
 
-v1 提供 6 个 analyzer（流量 / 行为 / 留存 / 异常 / 预测 / 分群）+ Streamlit
-仪表板 + 60+ 单元测试。6 个 analyzer 已经是纯 pandas（只有 dashboard.py 依赖
-Streamlit），但**v1 有 3 个 bug**导致原始测试无法全跑通：
+所有分析都是纯 pandas 实现，输出统一是 JSON，方便脚本、定时任务和下游程序直接消费。
+另带一个可选的 Streamlit 仪表板做交互式探索。
 
-| Bug | 位置 | 修复 |
-|---|---|---|
-| 语法错误（未闭合 `[`） | `traffic_analyzer.py:91` `analyze_device_distribution` | 重写为可读三行 |
-| 测试 fixture 缺参数 | `tests/test_retention.py:65` | 加 `sample_traffic_data` 参数 |
-| std 期望值用错 ddof | `tests/test_anomaly.py:128` | 改 `df.std(ddof=0)` 与 numpy 一致 |
+## 它能回答的问题
 
-v2 在修这些 bug 的基础上加 CLI 入口，10 个新 CLI 烟雾测试。
-
-## v2 新增 / 修复
-
-| 文件 | 干什么 |
-|---|---|
-| `__main__.py` | CLI 6 子命令：traffic / behavior / retention / anomalies / forecast / segments |
-| `tests/test_cli.py` | 10 个 CLI 端到端 + `_to_jsonable` 单元测试 |
-| `traffic_analyzer.py` | **修 v1 syntax error** `analyze_device_distribution` |
-| `tests/test_retention.py` | **修 fixture 漏参** test_calculate_retention_matrix_no_cohort |
-| `tests/test_anomaly.py` | **修 std ddof 不一致** test_z_score_calculation |
-
-总测试 71 个（61 v1 + 10 v2），2.5 秒跑完。
-
-## v1 仍保留
-
-| 模块 | 干什么 |
-|---|---|
-| `dashboard.py` | Streamlit 交互式主界面 |
-| `traffic_analyzer.py` | PV/UV / 来源 / 设备 / 地理 |
-| `behavior_analyzer.py` | 页面 / 跳出率 / 访问深度 / 用户路径 |
-| `retention_analyzer.py` | Cohort 留存 |
-| `anomaly_detector.py` | Z-Score / Isolation Forest / 趋势异常 |
-| `forecaster.py` | ARIMA / 指数平滑 |
-| `segmentation_analyzer.py` | RFM 分群 |
-| `generate_sample_data.py` / `sample_data.csv` | 示例数据 |
+- 用户从 `page_view` 到 `purchase`，每一步漏掉多少人？**最该优化的是哪一步？**
+- 新用户的次日 / 7 日 / 30 日留存是多少？
+- 用户进站后最常走哪几条路径？
+- 哪些天的流量是统计意义上的异常？
+- 未来 N 天的趋势大概什么样？
+- 用户按价值（RFM）分成哪几档，各有多少人？
 
 ## 安装
 
@@ -45,171 +24,191 @@ v2 在修这些 bug 的基础上加 CLI 入口，10 个新 CLI 烟雾测试。
 pip install -r requirements.txt
 ```
 
+只跑命令行的话，核心依赖是 pandas / numpy / scipy / statsmodels / scikit-learn；
+Streamlit 和 plotly 只有仪表板才需要。
+
 ## 快速开始
 
-### v2 headless CLI
+仓库自带两份示例数据，克隆下来即可离线跑通所有命令：
+
+- `sample_events.csv`——事件流（`user_id` / `event` / `timestamp` / `value`），
+  给 `funnel`、`path` 用。
+- `sample_data.csv`——流量明细（`date` / `user_id` / `session_id` / `page` / …），
+  给 `traffic`、`behavior`、`retention`、`anomalies`、`forecast`、`segments` 用。
 
 ```bash
-# 流量概览：PV/UV + 来源 + 设备 + 地理
-python __main__.py traffic sample_data.csv
+# 漏斗转化 + 自动定位最弱环节
+python -m event_lens funnel sample_events.csv --steps page_view,sign_up,add_to_cart,checkout,purchase
 
-# 用户行为：页面 + 跳出 + 深度
-python __main__.py behavior sample_data.csv
+# 最常见的用户路径序列
+python -m event_lens path sample_events.csv --max-steps 5 --top-k 10
+
+# PV/UV + 来源 + 设备 + 地理
+python -m event_lens traffic sample_data.csv
+
+# 页面指标 + 跳出率 + 访问深度
+python -m event_lens behavior sample_data.csv
 
 # 周 cohort 留存矩阵
-python __main__.py retention sample_data.csv --granularity week
+python -m event_lens retention sample_data.csv --granularity week
 
-# 异常检测（z-score）
-python __main__.py anomalies sample_data.csv --metric duration --threshold 2.5
+# Z-Score 异常检测
+python -m event_lens anomalies sample_data.csv --metric visits --threshold 2.5
 
-# 时间序列预测
-python __main__.py forecast sample_data.csv --metric visits --steps 7
+# 时间序列预测（指数平滑，自动回退趋势外推）
+python -m event_lens forecast sample_data.csv --metric visits --steps 7
 
-# RFM 用户分群
-python __main__.py segments sample_data.csv
+# RFM 用户价值分群
+python -m event_lens segments sample_data.csv
 
-# 所有命令支持 -o report.json
-python __main__.py traffic sample_data.csv -o report.json
+# 任意命令都支持 -o 写文件
+python -m event_lens funnel sample_events.csv --steps page_view,purchase -o report.json
 ```
 
-### v1 Streamlit 仪表板
+> `python -m event_lens <cmd>` 与 `python __main__.py <cmd>` 等价；下面统一用前者。
+
+## 子命令
+
+### 事件流（输入需含 `user_id` / `event` / `timestamp`）
+
+| 命令 | 作用 | 关键参数 |
+|---|---|---|
+| `funnel` | 漏斗转化，逐步算转化率，并自动定位 step-to-step 流失最高的 `weakest_step` | `--steps`（逗号分隔有序事件，必填）、`--window`（相邻步骤时间窗口小时数，默认 24） |
+| `path` | 每个用户前 N 步事件拼成序列，统计最常见的路径模式 | `--max-steps`（默认 5）、`--top-k`（默认 10） |
+
+`funnel` 的转化是带时间窗口约束的：只有在 `--window` 小时内、且晚于上一步发生的
+事件才算转化到下一步，更贴近真实漏斗口径。
+
+### 流量 / 会话（输入需含 `date` / `user_id`，其余列可选）
+
+| 命令 | 作用 |
+|---|---|
+| `traffic` | PV/UV、来源质量、设备分布、地理分布 |
+| `behavior` | 页面指标、跳出率、访问深度分布 |
+| `retention` | Cohort 留存矩阵（`--granularity day/week/month`） |
+| `anomalies` | Z-Score 统计异常（`--metric` / `--threshold`，找不到指标列会自动回退到首个数值列） |
+| `forecast` | 时间序列预测（`--metric` / `--steps` / `--confidence`） |
+| `segments` | RFM 用户价值分群（自动从明细派生 recency / frequency / monetary） |
+
+## 输入数据 schema
+
+事件流命令只认三列，其余列忽略：
+
+| 列 | 必需 | 说明 |
+|---|---|---|
+| `user_id` | 是 | 用户标识 |
+| `event` | 是 | 事件名，如 `page_view` / `sign_up` / `purchase` |
+| `timestamp` | 是 | 可被 `pandas` 解析的时间 |
+| `value` | 否 | 金额等数值，`segments` 会用作 monetary |
+
+流量 / 会话命令的列：
+
+| 列 | 必需 | 说明 |
+|---|---|---|
+| `date` | 是 | 可解析日期 |
+| `user_id` | 是 | 用户 ID |
+| `session_id` | 否 | 会话 ID（行为 / 跳出率分析需要） |
+| `page` | 否 | 页面名 |
+| `source` | 否 | 来源（utm_source 类） |
+| `device` | 否 | desktop / mobile / tablet |
+| `country` | 否 | 地理分析需要 |
+| `duration` | 否 | 停留时长（秒），无金额列时作 monetary 兜底 |
+| `visits` | 否 | 异常检测 / 预测的默认指标列 |
+
+## 库调用
+
+命令行只是薄封装，分析逻辑都可以直接 import。
+
+```python
+import pandas as pd
+from event_analytics import compute_funnel, compute_top_paths
+
+df = pd.read_csv("sample_events.csv")
+
+report = compute_funnel(df, steps=["page_view", "sign_up", "purchase"])
+print(report.overall_conversion_pct)   # 端到端转化率
+print(report.weakest_step)             # 流失最严重的一步
+print(report.to_dict())                # JSON 可序列化结构
+
+paths = compute_top_paths(df, max_steps=5, top_k=10)
+print(paths.top_sequences)             # [("page_view -> sign_up -> ...", count), ...]
+```
+
+流量类分析器同样可单独用：
+
+```python
+from traffic_analyzer import TrafficAnalyzer
+from retention_analyzer import RetentionAnalyzer
+
+df = pd.read_csv("sample_data.csv")
+df["date"] = pd.to_datetime(df["date"])
+
+ta = TrafficAnalyzer(df)
+ta.calculate_pv_uv()
+print(ta.get_summary())
+
+ra = RetentionAnalyzer(df)
+ra.create_cohorts("date", "user_id", "week")
+print(ra.calculate_retention_matrix())
+```
+
+## Streamlit 仪表板
 
 ```bash
 streamlit run dashboard.py
 ```
 
-### 库调用
+支持上传 CSV 或使用内置示例数据，覆盖流量 / 行为 / 留存 / 异常 / 预测 / 细分
+六个交互模块。命令行不画图——图表归仪表板，命令行只产出 JSON，方便自动化消费。
 
-```python
-import pandas as pd
-from traffic_analyzer import TrafficAnalyzer
-from behavior_analyzer import BehaviorAnalyzer
-from retention_analyzer import RetentionAnalyzer
+## 重新生成示例数据
 
-df = pd.read_csv("traffic.csv")
-df["date"] = pd.to_datetime(df["date"])
-
-# 流量
-ta = TrafficAnalyzer(df)
-ta.calculate_pv_uv()
-print(ta.get_summary())     # {'metrics': {'pv': N, 'uv': N, ...}, 'data_shape': ...}
-
-# 行为
-ba = BehaviorAnalyzer(df)
-print(ba.calculate_page_metrics())
-print(ba.calculate_bounce_rate())
-
-# 留存
-ra = RetentionAnalyzer(df)
-ra.create_cohorts("date", "user_id", "week")
-matrix = ra.calculate_retention_matrix()
+```bash
+python generate_event_data.py     # -> sample_events.csv（事件流）
+python generate_sample_data.py    # -> sample_data.csv（流量明细）
 ```
 
-## 数据 schema
-
-| 列 | 必需 | 说明 |
-|---|---|---|
-| date | **是** | datetime-parseable |
-| user_id | **是** | 用户 ID |
-| session_id | 否 | 会话 ID（行为 / 跳出率分析需要） |
-| page | 否 | 页面名（行为分析需要） |
-| source | 否 | 来源（utm_source 类） |
-| device | 否 | desktop / mobile / tablet |
-| country / city | 否 | 地理分析需要 |
-| duration | 否 | 停留时长（秒） |
-| visits | 否 | 异常检测默认 metric 列 |
-
-## v1 bug 修复细节
-
-### 1. `traffic_analyzer.py` 行 91 语法错误
-
-```python
-# v1 原版（无法 import）：
-'mobile_percentage': device_stats[device_stats[...]]['percentage'].sum()
-                   if device_stats[device_stats[...].any() else 0   # 漏 ]
-}
-```
-
-修成：
-
-```python
-mobile_mask = device_stats[device_column].str.contains('mobile', case=False, na=False)
-mobile_pct = (device_stats[mobile_mask]['percentage'].sum()
-              if mobile_mask.any() else 0.0)
-return {
-    'device_distribution': device_stats,
-    'mobile_percentage': float(mobile_pct),
-}
-```
-
-### 2. test_retention 漏参
-
-```python
-# v1 原版（NameError）：
-def test_calculate_retention_matrix_no_cohort(self):
-    analyzer = RetentionAnalyzer(sample_traffic_data)   # 没传 fixture
-```
-
-修成：
-
-```python
-def test_calculate_retention_matrix_no_cohort(self, sample_traffic_data):
-```
-
-### 3. test_anomaly std ddof 不一致
-
-`anomaly_detector` 用 `numpy.std(values)` 默认 `ddof=0`（总体），但测试期望
-`df.std()` 默认 `ddof=1`（样本）—— 600 个数据点上差 ~0.5%。改成测试也用
-`ddof=0`，与 detector 实现保持一致。
-
-## 设计取舍
-
-- **CLI 不做画图**：图表归 Streamlit dashboard，CLI 只输出 JSON / 写文件 —— 让
-  脚本和 cron 任务能消费。
-- **`_to_jsonable` 递归转换**：DataFrame / Series / numpy 类型 / datetime 全部
-  转 JSON 可序列化值，避免每个子命令各自处理。
-- **anomalies 子命令 fallback**：用户传一个 CSV 里没有的 metric 列，自动 fallback
-  到第一个数值列（带 warning），而不是直接报错。
+两个脚本都用固定随机种子，结果可复现。
 
 ## 项目结构
 
 ```
-Traffic-Analytics-Platform/
-├── __main__.py                  # v2 CLI
-├── dashboard.py                 # v1 Streamlit
-├── traffic_analyzer.py          # v1（已修 syntax error）
-├── behavior_analyzer.py         # v1
-├── retention_analyzer.py        # v1
-├── anomaly_detector.py          # v1
-├── forecaster.py                # v1
-├── segmentation_analyzer.py     # v1
-├── generate_sample_data.py
-├── tests/                       # 71 测试
-│   ├── conftest.py
-│   ├── test_traffic.py
-│   ├── test_behavior.py
-│   ├── test_retention.py        # 修 fixture 参数
-│   ├── test_anomaly.py          # 修 std ddof
-│   ├── test_forecaster.py
-│   └── test_cli.py              # v2 新增
-├── sample_data.csv
-└── requirements.txt
+event-lens/
+├── __main__.py                # 统一 CLI 入口（8 个子命令）
+├── event_analytics.py         # 事件流分析：漏斗 / 路径 / 留存 / 分群（纯 pandas）
+├── traffic_analyzer.py        # PV/UV / 来源 / 设备 / 地理
+├── behavior_analyzer.py       # 页面 / 跳出率 / 访问深度
+├── retention_analyzer.py      # Cohort 留存矩阵
+├── anomaly_detector.py        # Z-Score / 孤立森林 / 趋势异常
+├── forecaster.py              # ARIMA / 指数平滑 / 趋势外推
+├── segmentation_analyzer.py   # RFM / K-Means 分群
+├── dashboard.py               # Streamlit 仪表板
+├── generate_event_data.py     # 事件流示例数据生成器
+├── generate_sample_data.py    # 流量明细示例数据生成器
+├── sample_events.csv          # 自带事件流示例
+├── sample_data.csv            # 自带流量明细示例
+└── tests/                     # pytest 套件
 ```
 
 ## 测试
 
 ```bash
-pytest tests/ --no-cov
+python -m pytest tests/ -q
 ```
 
-71 个测试，2.5 秒跑完。
+## 设计取舍
 
-## 已知限制
-
-- `forecast` 子命令默认用指数平滑，statsmodels 装失败时回退到简单 trend
-  forecast（最后两个点的线性外推），不精确但能跑。
-- `retention` 默认按 week 切 cohort；按 day 切会产生很多小 cohort，可读性差。
-- `traffic` 的设备 / 地理分析只在数据有对应列时跑，缺列就跳过该字段。
+- **命令行不画图**：图表交给 Streamlit 仪表板，命令行只输出 JSON / 写文件，
+  让脚本和 cron 任务能直接消费结果。
+- **JSON 序列化统一兜底**：留存矩阵的 cohort 日期键是 `Timestamp`，DataFrame /
+  numpy 标量也常见，`__main__.py` 在序列化前把键和值都转成 JSON 合法类型，
+  避免每个子命令各自处理。
+- **`funnel` 带时间窗口**：相邻步骤必须在窗口内先后发生才算转化，比单纯"做过某事件"
+  更接近真实漏斗。
+- **`anomalies` 自动回退**：传入 CSV 里不存在的指标列时，自动回退到第一个数值列
+  并给出告警，而不是直接报错。
+- **`segments` 自动派生 RFM**：明细里没有 recency/frequency/monetary 时，按
+  `user_id` 从原始数据现算，让命令在任意事件 / 流量 CSV 上都能跑。
 
 ## 许可
 
