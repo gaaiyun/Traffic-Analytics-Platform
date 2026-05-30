@@ -85,22 +85,37 @@ class Forecaster:
         """进行预测"""
         if self.model is None:
             raise ValueError("未拟合模型")
-        
+
         try:
-            forecast = self.model.get_forecast(steps=steps)
-            forecast_values = forecast.predicted_mean
-            conf_int = forecast.conf_int(alpha=1-confidence)
-            
+            if hasattr(self.model, 'get_forecast'):
+                # ARIMA / SARIMAX：自带带置信区间的 get_forecast
+                forecast = self.model.get_forecast(steps=steps)
+                forecast_values = forecast.predicted_mean
+                conf_int = forecast.conf_int(alpha=1 - confidence)
+                lower = conf_int.iloc[:, 0]
+                upper = conf_int.iloc[:, 1]
+            else:
+                # Holt-Winters / ExponentialSmoothing：只有 forecast()，
+                # 没有解析置信区间，用残差标准差近似一个对称区间
+                forecast_values = self.model.forecast(steps)
+                resid = getattr(self.model, 'resid', None)
+                sigma = float(np.std(resid)) if resid is not None else 0.0
+                from scipy.stats import norm
+                z = norm.ppf(1 - (1 - confidence) / 2)
+                margin = z * sigma
+                lower = forecast_values - margin
+                upper = forecast_values + margin
+
             self.forecast_results = {
                 'forecast': forecast_values,
-                'lower_bound': conf_int.iloc[:, 0],
-                'upper_bound': conf_int.iloc[:, 1]
+                'lower_bound': lower,
+                'upper_bound': upper
             }
-            
+
             return {
                 'forecast_values': forecast_values.tolist(),
-                'lower_bound': conf_int.iloc[:, 0].tolist(),
-                'upper_bound': conf_int.iloc[:, 1].tolist(),
+                'lower_bound': lower.tolist(),
+                'upper_bound': upper.tolist(),
                 'steps': steps,
                 'confidence': confidence
             }
