@@ -115,7 +115,7 @@ def cmd_traffic(args) -> int:
         payload["sources"] = {"error": str(e)}
     if "device" in df.columns:
         try:
-            payload["devices"] = analyzer.analyze_device_distribution("device")
+            payload["devices"] = analyzer.analyze_devices("device")
         except Exception as e:
             payload["devices"] = {"error": str(e)}
     if "country" in df.columns:

@@ -120,6 +120,9 @@ def test_cli_traffic(sample_csv_path):
     assert code == 0
     assert "summary" in payload
     assert payload["summary"]["metrics"]["pv"] == 400
+    # devices 段必须真算出来，不能是被吞掉的 error（回归守门）
+    if "devices" in payload:
+        assert "error" not in payload["devices"]
 
 
 def test_cli_behavior(sample_csv_path):
